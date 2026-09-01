@@ -73,42 +73,74 @@ def predict(image: Image.Image):
     return {name: float(prob) for name, prob in zip(CLASS_NAMES, probs)}
 
 
-st.set_page_config(page_title="Brain Tumor MRI Classifier", page_icon="🧠")
-st.title("🧠 Brain Tumor MRI Classifier")
+st.set_page_config(page_title="Brain Tumor MRI Classifier", page_icon="🧠", layout="centered")
+
 st.markdown(
-    "Upload a brain MRI scan to classify it as **glioma**, **meningioma**, "
-    "**pituitary tumor**, or **no tumor**, using a MobileNetV2 model fine-tuned "
-    "on the Brain Tumor MRI Dataset."
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+    footer { visibility: hidden; }
+    img { border-radius: 10px; }
+    div[data-testid="stFileUploaderDropzone"] { border-radius: 12px; }
+    .hero-title { text-align: center; font-size: 2.2rem; font-weight: 700; margin-bottom: 0; }
+    .hero-subtitle { text-align: center; color: var(--text-color, #8a8a8a); font-size: 1.05rem; margin-top: 0.25rem; }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
-st.markdown(f":red[{DISCLAIMER}]")
+
+with st.sidebar:
+    st.markdown("### 🧠 About")
+    st.markdown(
+        "This app classifies brain MRI scans into four categories using a "
+        "**MobileNetV2** convolutional network fine-tuned via transfer learning."
+    )
+    st.markdown("**Classes**")
+    st.markdown("- Glioma\n- Meningioma\n- Pituitary tumor\n- No tumor")
+    st.metric("Test accuracy", "~83%")
+    st.markdown(
+        "**Dataset:** [Brain Tumor MRI Dataset on Kaggle]"
+        "(https://www.kaggle.com/datasets/masoudnickparvar/brain-tumor-mri-dataset)"
+    )
+    st.divider()
+    st.markdown(f":red[{DISCLAIMER}]")
+
+st.markdown('<p class="hero-title">🧠 Brain Tumor MRI Classifier</p>', unsafe_allow_html=True)
+st.markdown(
+    '<p class="hero-subtitle">Upload a brain MRI scan and get an instant prediction with confidence scores.</p>',
+    unsafe_allow_html=True,
+)
+st.write("")
 
 if "selected_example" not in st.session_state:
     st.session_state.selected_example = None
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
 
-st.subheader("Upload a brain MRI scan")
-uploaded_file = st.file_uploader(
-    "Upload a brain MRI scan",
-    type=["jpg", "jpeg", "png"],
-    key=f"uploader_{st.session_state.uploader_key}",
-    label_visibility="collapsed",
-)
+with st.container(border=True):
+    st.markdown("##### 📤 Upload a brain MRI scan")
+    uploaded_file = st.file_uploader(
+        "Upload a brain MRI scan",
+        type=["jpg", "jpeg", "png"],
+        key=f"uploader_{st.session_state.uploader_key}",
+        label_visibility="collapsed",
+    )
 
-st.caption("...or try an example:")
-example_files = sorted(os.listdir(EXAMPLE_DIR))
-cols = st.columns(len(example_files))
-for col, fname in zip(cols, example_files):
-    path = os.path.join(EXAMPLE_DIR, fname)
-    label = os.path.splitext(fname)[0]
-    with col:
-        st.image(path, caption=CLASS_LABELS.get(label, label))
-        if st.button("Use this", key=fname):
-            st.session_state.selected_example = path
-            # Force the uploader to remount empty, so it visually reflects
-            # that the example has replaced whatever was previously uploaded.
-            st.session_state.uploader_key += 1
-            st.rerun()
+    st.caption("...or try an example")
+    example_files = sorted(os.listdir(EXAMPLE_DIR))
+    cols = st.columns(len(example_files))
+    for col, fname in zip(cols, example_files):
+        path = os.path.join(EXAMPLE_DIR, fname)
+        label = os.path.splitext(fname)[0]
+        with col:
+            st.image(path, caption=CLASS_LABELS.get(label, label), use_container_width=True)
+            if st.button("Use this", key=fname, use_container_width=True):
+                st.session_state.selected_example = path
+                # Force the uploader to remount empty, so it visually reflects
+                # that the example has replaced whatever was previously uploaded.
+                st.session_state.uploader_key += 1
+                st.rerun()
 
 image = None
 if uploaded_file is not None:
@@ -118,12 +150,23 @@ elif st.session_state.selected_example:
     image = Image.open(st.session_state.selected_example)
 
 if image is not None:
-    st.subheader("Selected image")
-    st.image(image, width=300)
-    with st.spinner("Classifying..."):
-        result = predict(image)
+    st.write("")
+    with st.container(border=True):
+        st.markdown("##### 🔍 Result")
+        col_img, col_result = st.columns([1, 1.3], gap="large")
 
-    sorted_result = dict(sorted(result.items(), key=lambda kv: kv[1], reverse=True))
-    top_class, top_conf = next(iter(sorted_result.items()))
-    st.success(f"Prediction: **{CLASS_LABELS[top_class]}** ({top_conf:.1%} confidence)")
-    st.bar_chart({CLASS_LABELS[k]: v for k, v in sorted_result.items()})
+        with col_img:
+            st.image(image, use_container_width=True)
+
+        with col_result:
+            with st.spinner("Classifying..."):
+                result = predict(image)
+
+            sorted_result = dict(sorted(result.items(), key=lambda kv: kv[1], reverse=True))
+            top_class, top_conf = next(iter(sorted_result.items()))
+
+            st.metric("Prediction", CLASS_LABELS[top_class], f"{top_conf:.1%} confidence")
+            st.markdown("**Confidence breakdown**")
+            for cls, prob in sorted_result.items():
+                st.caption(f"{CLASS_LABELS[cls]} — {prob:.1%}")
+                st.progress(prob)
