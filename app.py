@@ -83,8 +83,18 @@ st.markdown(
 
 if "selected_example" not in st.session_state:
     st.session_state.selected_example = None
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
 
-st.subheader("Try an example")
+st.subheader("Upload a brain MRI scan")
+uploaded_file = st.file_uploader(
+    "Upload a brain MRI scan",
+    type=["jpg", "jpeg", "png"],
+    key=f"uploader_{st.session_state.uploader_key}",
+    label_visibility="collapsed",
+)
+
+st.caption("...or try an example:")
 example_files = sorted(os.listdir(EXAMPLE_DIR))
 cols = st.columns(len(example_files))
 for col, fname in zip(cols, example_files):
@@ -94,9 +104,10 @@ for col, fname in zip(cols, example_files):
         st.image(path, caption=CLASS_LABELS.get(label, label))
         if st.button("Use this", key=fname):
             st.session_state.selected_example = path
-
-st.subheader("Or upload your own")
-uploaded_file = st.file_uploader("Upload a brain MRI scan", type=["jpg", "jpeg", "png"])
+            # Force the uploader to remount empty, so it visually reflects
+            # that the example has replaced whatever was previously uploaded.
+            st.session_state.uploader_key += 1
+            st.rerun()
 
 image = None
 if uploaded_file is not None:
@@ -106,7 +117,8 @@ elif st.session_state.selected_example:
     image = Image.open(st.session_state.selected_example)
 
 if image is not None:
-    st.image(image, caption="Input MRI", width=300)
+    st.subheader("Selected image")
+    st.image(image, width=300)
     with st.spinner("Classifying..."):
         result = predict(image)
 
