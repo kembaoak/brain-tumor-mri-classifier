@@ -78,8 +78,9 @@ st.title("🧠 Brain Tumor MRI Classifier")
 st.markdown(
     "Upload a brain MRI scan to classify it as **glioma**, **meningioma**, "
     "**pituitary tumor**, or **no tumor**, using a MobileNetV2 model fine-tuned "
-    "on the Brain Tumor MRI Dataset.\n\n" + DISCLAIMER
+    "on the Brain Tumor MRI Dataset."
 )
+st.markdown(f":red[{DISCLAIMER}]")
 
 if "selected_example" not in st.session_state:
     st.session_state.selected_example = None
